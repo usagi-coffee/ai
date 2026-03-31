@@ -31,6 +31,8 @@ Use this skill to run a measured parser-cost reduction pass on a tree-sitter gra
 - Prefer narrow domain-specific helpers over broader shared helpers that admit extra alternatives.
 - Favor local rule-shape sharing before regrouping top-level dispatchers.
 - Treat parser metrics as the source of truth, not aesthetics.
+- Preserve parser behavior while optimizing.
+- Do not change the output tree shape, hide or expose nodes differently, rename fields, or otherwise alter parse results just to improve counts.
 - Use one small edit per measurement cycle.
 - Some extractions reduce counts and some increase them. Try different cuts, regenerate, and keep only the proven win.
 - Use the last accepted checkpoint as the comparison source.
@@ -324,4 +326,5 @@ Prefer local sharing inside the hotspot file before changing top-level dispatch.
   Prefer a project command that already prints them.
   Otherwise derive them from `src/parser.c`.
 - Re-run the grammar test suite after the kept changes.
+- Verify the kept change does not alter the output tree shape or node visibility for existing parses.
 - If one metric improves but others regress badly, compare against the previous baseline before keeping the change.
