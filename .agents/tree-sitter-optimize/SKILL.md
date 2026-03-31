@@ -1,0 +1,252 @@
+---
+name: tree-sitter-optimize
+description: Optimize tree-sitter grammar cost metrics such as ACTION_COUNT, STATE_COUNT, LARGE_STATE_COUNT, or expensive parser symbols. Use when Codex is asked to reduce parser size, squeeze action count, optimize costly grammar rules, or run a measured refactoring pass on a tree-sitter grammar.
+---
+
+# Tree-sitter Optimize
+
+Use this skill to run a measured parser-cost reduction pass on a tree-sitter grammar.
+
+## Workflow
+
+1. Establish the baseline with the project's normal generation or check command.
+2. Identify the hotspot before editing.
+   Use the project's state-reporting workflow such as `tree-sitter generate --report-states-for-rule -` when available.
+   Treat the largest rules as candidates, not automatic problems.
+   Large wrapper rules with many `choice`, `optional`, and `repeat` branches are usually better targets than naturally expensive operator expressions.
+3. Prefer local structural deduplication over broad grammar-wide refactors.
+4. Apply one optimization at a time.
+5. Re-run the same generation or check command after each change.
+6. Compare the result to the last accepted baseline and revert neutral-to-worse changes quickly.
+7. On slow grammars, remember the last accepted checkpoint counts and avoid re-measuring immediately after a pure revert.
+8. Run the normal test workflow after the kept changes.
+
+## General Rules
+
+- Optimize where the duplication actually lives.
+- Prefer narrow domain-specific helpers over broader shared helpers that admit extra alternatives.
+- Favor local rule-shape sharing before regrouping top-level dispatchers.
+- Treat parser metrics as the source of truth, not aesthetics.
+- Use one small edit per measurement cycle.
+- Some extractions reduce counts and some increase them. Try different cuts, regenerate, and keep only the proven win.
+- Use the last accepted checkpoint as the comparison source.
+- If a change is reverted cleanly, assume the metrics are back at the last accepted checkpoint unless there is a reason to distrust the revert.
+
+Example measurement loop:
+
+```text
+baseline: ACTION_COUNT 65278
+change A: ACTION_COUNT 65170
+change B: ACTION_COUNT 65293
+```
+
+Keep change A. Revert change B immediately.
+
+## Technique: Hidden Semantic Chunk Extraction
+
+Use when one large rule contains multiple logical sections that can be separated into hidden helpers.
+
+This pays off because splitting a large rule into semantic chunks often reduces both the rule's own states and unrelated global states.
+
+Example:
+
+```js
+type_definition: $ => seq(
+  repeat($.type_qualifier),
+  field('type', $._type_specifier),
+  repeat($.type_qualifier),
+  commaSep1(field('declarator', $._type_declarator)),
+  repeat($.attribute_specifier),
+  ';',
+)
+```
+
+Prefer:
+
+```js
+type_definition: $ => seq(
+  $._type_definition_type,
+  $._type_definition_declarators,
+  repeat($.attribute_specifier),
+  ';',
+)
+_type_definition_type: $ => seq(
+  repeat($.type_qualifier),
+  field('type', $._type_specifier),
+  repeat($.type_qualifier),
+)
+_type_definition_declarators: $ => commaSep1(field('declarator', $._type_declarator))
+```
+
+Use it when the extracted pieces are real semantic chunks, not arbitrary slices.
+
+## Technique: Prefix Extraction
+
+Use when several rules begin with the same fixed keyword sequence and only diverge near the end.
+
+This usually pays off because the parser can reuse the early path instead of specializing the same prefix repeatedly.
+
+Example:
+
+```js
+foo_a: ($) => seq(kw("ALTER"), kw("DATABASE"), kw("SET"), kw("X"), $.value),
+foo_b: ($) => seq(kw("ALTER"), kw("DATABASE"), kw("SET"), kw("Y"), $.value),
+```
+
+Prefer:
+
+```js
+__foo_prefix: ($) => seq(kw("ALTER"), kw("DATABASE"), kw("SET")),
+foo_a: ($) => seq($.__foo_prefix, kw("X"), $.value),
+foo_b: ($) => seq($.__foo_prefix, kw("Y"), $.value),
+```
+
+Use it when the prefix is exact and repeated many times.
+
+## Technique: Body Extraction
+
+Use when a single rule has a substantial internal structure and it is cheaper to split that structure into a dedicated `__rule_body` helper.
+
+This can pay off by itself. The helper does not need to be reused by other rules to have an impact on state counts.
+
+Example:
+
+```js
+my_statement: ($) =>
+  seq(
+    kw("MY-STATEMENT"),
+    field("left", $.identifier),
+    optional(field("right", $.identifier)),
+    repeat($.__option),
+    $._terminator,
+  ),
+```
+
+Prefer:
+
+```js
+my_statement: ($) => seq(kw("MY-STATEMENT"), $.__my_statement_body, $._terminator),
+__my_statement_body: ($) =>
+  seq(
+    field("left", $.identifier),
+    optional(field("right", $.identifier)),
+    repeat($.__option),
+  ),
+```
+
+Use it when the top rule becomes cleaner and the body is complex enough to stand on its own.
+
+## Technique: Optional Body Extraction
+
+Use when many rules share `optional(body) + terminator`.
+
+This pays off for families of short statements with optional trailing SQL-like or option-like tails.
+
+Example:
+
+```js
+stmt_a: ($) => seq(kw("A"), optional(field("body", $.__tail)), $._terminator),
+stmt_b: ($) => seq(kw("B"), optional(field("body", $.__tail)), $._terminator),
+```
+
+Prefer:
+
+```js
+__stmt_a_body: ($) => seq(optional(field("body", $.__tail)), $._terminator),
+__stmt_b_body: ($) => seq(optional(field("body", $.__tail)), $._terminator),
+stmt_a: ($) => seq(kw("A"), $.__stmt_a_body),
+stmt_b: ($) => seq(kw("B"), $.__stmt_b_body),
+```
+
+Use it when the optionality is identical across multiple rules.
+
+## Technique: Tail Extraction
+
+Use when a rule family has a repeated tail shape after a unique head.
+
+This pays off when a large suffix is duplicated and the head does not need to know its internal structure.
+
+Example:
+
+```js
+stmt_a: ($) => seq(kw("CREATE"), kw("TABLE"), $.name, field("body", $.__tail), $._terminator),
+stmt_b: ($) => seq(kw("CREATE"), kw("VIEW"), $.name, field("body", $.__tail), $._terminator),
+```
+
+Prefer:
+
+```js
+__create_table_body: ($) => seq(field("body", $.__tail), $._terminator),
+__create_view_body: ($) => seq(field("body", $.__tail), $._terminator),
+stmt_a: ($) => seq(kw("CREATE"), kw("TABLE"), $.name, $.__create_table_body),
+stmt_b: ($) => seq(kw("CREATE"), kw("VIEW"), $.name, $.__create_view_body),
+```
+
+Use it when the tail is structurally generic and repeated often.
+
+## Technique: Token Packing
+
+Use when a generic tail consumes many punctuation or operator branches as undifferentiated items.
+
+This can pay off because a single token helper may be cheaper than many parallel literal branches.
+
+Example:
+
+```js
+__tail_token: ($) => choice(",", "(", ")", "=", "<", ">", "+", "-", "*", "/"),
+```
+
+Prefer:
+
+```js
+__tail_symbol: ($) => token(choice(",", "(", ")", "=", "<", ">", "+", "-", "*", "/")),
+__tail_token: ($) => choice($.__tail_symbol, $.identifier, $.string_literal),
+```
+
+Use it only when those symbols are intentionally generic tail items.
+
+## Technique: Local Prefix Family Helpers
+
+Use when a rule family differs only by one keyword after a shared local prefix.
+
+This often pays off for pairs like `SET PRO_CONNECT LOG` and `SET PRO_CONNECT QUERY_TIMEOUT`.
+
+Example:
+
+```js
+stmt_a: ($) => seq(kw("SET"), kw("PRO_CONNECT"), kw("LOG"), $.value),
+stmt_b: ($) => seq(kw("SET"), kw("PRO_CONNECT"), kw("QUERY_TIMEOUT"), $.value),
+```
+
+Prefer:
+
+```js
+__stmt_prefix: ($) => seq(kw("SET"), kw("PRO_CONNECT")),
+stmt_a: ($) => seq($.__stmt_prefix, kw("LOG"), $.value),
+stmt_b: ($) => seq($.__stmt_prefix, kw("QUERY_TIMEOUT"), $.value),
+```
+
+Use it when the family is local and repeated enough to matter.
+
+## Technique: Avoid Broad Dispatcher Grouping
+
+Do not assume grouping top-level statements into `_create_statement`, `_drop_statement`, or similar buckets will help.
+
+This often does not pay off because the extra dispatcher layer can introduce more specialization than it removes.
+
+Example:
+
+```js
+_sql_statement: ($) =>
+  choice($._sql_create_statement, $._sql_drop_statement, $._sql_alter_statement)
+```
+
+This may look cleaner, but it can still increase parser cost. Prefer testing local sharing inside the SQL rules first.
+
+Prefer local sharing inside the hotspot file before changing top-level dispatch.
+
+## Validation
+
+- Re-run the parser generation or check command after every optimization step.
+- Re-run the grammar test suite after the kept changes.
+- If one metric improves but others regress badly, compare against the previous baseline before keeping the change.
