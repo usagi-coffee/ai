@@ -9,14 +9,18 @@ Use this skill to run a measured parser-cost reduction pass on a tree-sitter gra
 
 ## Workflow
 
-1. Establish the baseline with the project's normal generation or check command.
+1. Establish the baseline by regenerating `src/parser.c` with the project's normal generation command, then record `ACTION_COUNT`, `STATE_COUNT`, and `LARGE_STATE_COUNT`.
+   Prefer a project command that already prints these metrics when one exists.
+   Otherwise derive them from the generated `src/parser.c`.
 2. Identify the hotspot before editing.
    Use the project's state-reporting workflow such as `tree-sitter generate --report-states-for-rule -` when available.
    Treat the largest rules as candidates, not automatic problems.
    Large wrapper rules with many `choice`, `optional`, and `repeat` branches are usually better targets than naturally expensive operator expressions.
 3. Prefer local structural deduplication over broad grammar-wide refactors.
 4. Apply one optimization at a time.
-5. Re-run the same generation or check command after each change.
+5. Re-run the same generation command after each change, then re-read the parser metrics.
+   Prefer a project command that already prints them.
+   Otherwise derive them from `src/parser.c`.
 6. Compare the result to the last accepted baseline and revert neutral-to-worse changes quickly.
 7. On slow grammars, remember the last accepted checkpoint counts and avoid re-measuring immediately after a pure revert.
 8. Run the normal test workflow after the kept changes.
@@ -42,6 +46,33 @@ change B: ACTION_COUNT 65293
 
 Keep change A. Revert change B immediately.
 
+## Deriving Parser Metrics
+
+Do not assume the project has a dedicated metrics or check command.
+
+After each generation pass, prefer any project-provided command that already prints parser metrics.
+
+If the project does not provide one, derive the metrics directly from `src/parser.c`.
+
+- `STATE_COUNT` and `LARGE_STATE_COUNT` are emitted as macros in `src/parser.c`.
+- `ACTION_COUNT` is not emitted directly as a macro in the generated parser. Derive it by scanning all `ACTIONS(<n>)` occurrences and taking the highest value.
+
+Example `src/parser.c` macros:
+
+```c
+#define STATE_COUNT 44191
+#define LARGE_STATE_COUNT 16320
+```
+
+Example extraction commands:
+
+```sh
+perl -ne 'while (/ACTIONS\((\d+)\)/g) { $m = $1 if !defined($m) || $1 > $m } END { print "#define ACTION_COUNT $m\n" if defined $m }' src/parser.c
+grep -E '#define (STATE_COUNT|LARGE_STATE_COUNT) ' src/parser.c
+```
+
+Treat the extracted output as the baseline and comparison source for optimization passes.
+
 ## Technique: Hidden Semantic Chunk Extraction
 
 Use when one large rule contains multiple logical sections that can be separated into hidden helpers.
@@ -51,31 +82,35 @@ This pays off because splitting a large rule into semantic chunks often reduces 
 Example:
 
 ```js
-type_definition: $ => seq(
-  repeat($.type_qualifier),
-  field('type', $._type_specifier),
-  repeat($.type_qualifier),
-  commaSep1(field('declarator', $._type_declarator)),
-  repeat($.attribute_specifier),
-  ';',
-)
+type_definition: ($) =>
+  seq(
+    repeat($.type_qualifier),
+    field("type", $._type_specifier),
+    repeat($.type_qualifier),
+    commaSep1(field("declarator", $._type_declarator)),
+    repeat($.attribute_specifier),
+    ";",
+  );
 ```
 
 Prefer:
 
 ```js
-type_definition: $ => seq(
-  $._type_definition_type,
-  $._type_definition_declarators,
-  repeat($.attribute_specifier),
-  ';',
-)
-_type_definition_type: $ => seq(
-  repeat($.type_qualifier),
-  field('type', $._type_specifier),
-  repeat($.type_qualifier),
-)
-_type_definition_declarators: $ => commaSep1(field('declarator', $._type_declarator))
+type_definition: ($) =>
+  seq(
+    $._type_definition_type,
+    $._type_definition_declarators,
+    repeat($.attribute_specifier),
+    ";",
+  );
+_type_definition_type: ($) =>
+  seq(
+    repeat($.type_qualifier),
+    field("type", $._type_specifier),
+    repeat($.type_qualifier),
+  );
+_type_definition_declarators: ($) =>
+  commaSep1(field("declarator", $._type_declarator));
 ```
 
 Use it when the extracted pieces are real semantic chunks, not arbitrary slices.
@@ -271,7 +306,11 @@ Example:
 
 ```js
 _sql_statement: ($) =>
-  choice($._sql_create_statement, $._sql_drop_statement, $._sql_alter_statement)
+  choice(
+    $._sql_create_statement,
+    $._sql_drop_statement,
+    $._sql_alter_statement,
+  );
 ```
 
 This may look cleaner, but it can still increase parser cost. Prefer testing local sharing inside the SQL rules first.
@@ -280,6 +319,9 @@ Prefer local sharing inside the hotspot file before changing top-level dispatch.
 
 ## Validation
 
-- Re-run the parser generation or check command after every optimization step.
+- Re-run the parser generation command after every optimization step.
+- Recompute or re-read `ACTION_COUNT`, `STATE_COUNT`, and `LARGE_STATE_COUNT` after every kept change.
+  Prefer a project command that already prints them.
+  Otherwise derive them from `src/parser.c`.
 - Re-run the grammar test suite after the kept changes.
 - If one metric improves but others regress badly, compare against the previous baseline before keeping the change.
