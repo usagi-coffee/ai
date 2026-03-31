@@ -89,16 +89,16 @@ This usually pays off because the parser can reuse the early path instead of spe
 Example:
 
 ```js
-foo_a: ($) => seq(kw("ALTER"), kw("DATABASE"), kw("SET"), kw("X"), $.value),
-foo_b: ($) => seq(kw("ALTER"), kw("DATABASE"), kw("SET"), kw("Y"), $.value),
+foo_a: ($) => seq("ALTER", "DATABASE", "SET", "X", $.value),
+foo_b: ($) => seq("ALTER", "DATABASE", "SET", "Y", $.value),
 ```
 
 Prefer:
 
 ```js
-__foo_prefix: ($) => seq(kw("ALTER"), kw("DATABASE"), kw("SET")),
-foo_a: ($) => seq($.__foo_prefix, kw("X"), $.value),
-foo_b: ($) => seq($.__foo_prefix, kw("Y"), $.value),
+__foo_prefix: ($) => seq("ALTER", "DATABASE", "SET"),
+foo_a: ($) => seq($.__foo_prefix, "X", $.value),
+foo_b: ($) => seq($.__foo_prefix, "Y", $.value),
 ```
 
 Use it when the prefix is exact and repeated many times.
@@ -147,7 +147,7 @@ Example:
 ```js
 my_statement: ($) =>
   seq(
-    kw("MY-STATEMENT"),
+    "MY-STATEMENT",
     field("left", $.identifier),
     optional(field("right", $.identifier)),
     repeat($.__option),
@@ -158,7 +158,7 @@ my_statement: ($) =>
 Prefer:
 
 ```js
-my_statement: ($) => seq(kw("MY-STATEMENT"), $.__my_statement_body, $._terminator),
+my_statement: ($) => seq("MY-STATEMENT", $.__my_statement_body, $._terminator),
 __my_statement_body: ($) =>
   seq(
     field("left", $.identifier),
@@ -178,8 +178,8 @@ This pays off for families of short statements with optional trailing SQL-like o
 Example:
 
 ```js
-stmt_a: ($) => seq(kw("A"), optional(field("body", $.__tail)), $._terminator),
-stmt_b: ($) => seq(kw("B"), optional(field("body", $.__tail)), $._terminator),
+stmt_a: ($) => seq("A", optional(field("body", $.__tail)), $._terminator),
+stmt_b: ($) => seq("B", optional(field("body", $.__tail)), $._terminator),
 ```
 
 Prefer:
@@ -187,8 +187,8 @@ Prefer:
 ```js
 __stmt_a_body: ($) => seq(optional(field("body", $.__tail)), $._terminator),
 __stmt_b_body: ($) => seq(optional(field("body", $.__tail)), $._terminator),
-stmt_a: ($) => seq(kw("A"), $.__stmt_a_body),
-stmt_b: ($) => seq(kw("B"), $.__stmt_b_body),
+stmt_a: ($) => seq("A", $.__stmt_a_body),
+stmt_b: ($) => seq("B", $.__stmt_b_body),
 ```
 
 Use it when the optionality is identical across multiple rules.
@@ -202,8 +202,8 @@ This pays off when a large suffix is duplicated and the head does not need to kn
 Example:
 
 ```js
-stmt_a: ($) => seq(kw("CREATE"), kw("TABLE"), $.name, field("body", $.__tail), $._terminator),
-stmt_b: ($) => seq(kw("CREATE"), kw("VIEW"), $.name, field("body", $.__tail), $._terminator),
+stmt_a: ($) => seq("CREATE", "TABLE", $.name, field("body", $.__tail), $._terminator),
+stmt_b: ($) => seq("CREATE", "VIEW", $.name, field("body", $.__tail), $._terminator),
 ```
 
 Prefer:
@@ -211,8 +211,8 @@ Prefer:
 ```js
 __create_table_body: ($) => seq(field("body", $.__tail), $._terminator),
 __create_view_body: ($) => seq(field("body", $.__tail), $._terminator),
-stmt_a: ($) => seq(kw("CREATE"), kw("TABLE"), $.name, $.__create_table_body),
-stmt_b: ($) => seq(kw("CREATE"), kw("VIEW"), $.name, $.__create_view_body),
+stmt_a: ($) => seq("CREATE", "TABLE", $.name, $.__create_table_body),
+stmt_b: ($) => seq("CREATE", "VIEW", $.name, $.__create_view_body),
 ```
 
 Use it when the tail is structurally generic and repeated often.
@@ -247,16 +247,16 @@ This often pays off for pairs like `SET PRO_CONNECT LOG` and `SET PRO_CONNECT QU
 Example:
 
 ```js
-stmt_a: ($) => seq(kw("SET"), kw("PRO_CONNECT"), kw("LOG"), $.value),
-stmt_b: ($) => seq(kw("SET"), kw("PRO_CONNECT"), kw("QUERY_TIMEOUT"), $.value),
+stmt_a: ($) => seq("SET", "PRO_CONNECT", "LOG", $.value),
+stmt_b: ($) => seq("SET", "PRO_CONNECT", "QUERY_TIMEOUT", $.value),
 ```
 
 Prefer:
 
 ```js
-__stmt_prefix: ($) => seq(kw("SET"), kw("PRO_CONNECT")),
-stmt_a: ($) => seq($.__stmt_prefix, kw("LOG"), $.value),
-stmt_b: ($) => seq($.__stmt_prefix, kw("QUERY_TIMEOUT"), $.value),
+__stmt_prefix: ($) => seq("SET", "PRO_CONNECT"),
+stmt_a: ($) => seq($.__stmt_prefix, "LOG", $.value),
+stmt_b: ($) => seq($.__stmt_prefix, "QUERY_TIMEOUT", $.value),
 ```
 
 Use it when the family is local and repeated enough to matter.
