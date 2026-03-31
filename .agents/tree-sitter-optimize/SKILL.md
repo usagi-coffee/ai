@@ -103,6 +103,39 @@ foo_b: ($) => seq($.__foo_prefix, kw("Y"), $.value),
 
 Use it when the prefix is exact and repeated many times.
 
+## Technique: Local Alternative Extraction
+
+Use when the same non-trivial `choice(...)` appears repeatedly inside nearby rules.
+
+This can pay off because the parser can reuse one semantic alternative set instead of specializing the same branches in multiple places.
+
+Example:
+
+```js
+stmt_a: ($) =>
+  seq(
+    "A",
+    $.value,
+    optional(choice("X", "Y", "Z")),
+  ),
+stmt_b: ($) =>
+  seq(
+    "B",
+    $.value,
+    optional(choice("X", "Y", "Z")),
+  ),
+```
+
+Prefer:
+
+```js
+__stmt_alignment: ($) => choice("X", "Y", "Z"),
+stmt_a: ($) => seq("A", $.value, optional($.__stmt_alignment)),
+stmt_b: ($) => seq("B", $.value, optional($.__stmt_alignment)),
+```
+
+Use it when the extracted helper is a real local keyword family or semantic alternative set, not just an arbitrary tiny wrapper.
+
 ## Technique: Body Extraction
 
 Use when a single rule has a substantial internal structure and it is cheaper to split that structure into a dedicated `__rule_body` helper.
