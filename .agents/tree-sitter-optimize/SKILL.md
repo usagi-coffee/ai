@@ -35,6 +35,7 @@ Use this skill to run a measured parser-cost reduction pass on a tree-sitter gra
 - Treat parser metrics as the source of truth, not aesthetics.
 - Preserve parser behavior while optimizing.
 - Do not change the output tree shape, hide or expose nodes differently, rename fields, or otherwise alter parse results just to improve counts.
+- Do not apply optimizations that break rule ordering semantics, such as rewriting `seq(optional(...), optional(...), optional(...))` into `repeat(choice(...))`, unless the user has explicitly agreed to allow that ordering change.
 - Use one small edit per measurement cycle.
 - Some extractions reduce counts and some increase them. Try different cuts, regenerate, and keep only the proven win.
 - Use the last accepted checkpoint as the comparison source.
