@@ -74,11 +74,10 @@ Example `src/parser.c` macros:
 #define LARGE_STATE_COUNT 16320
 ```
 
-Example extraction commands:
+Example extraction command:
 
 ```sh
-perl -ne 'while (/ACTIONS\((\d+)\)/g) { $m = $1 if !defined($m) || $1 > $m } END { print "#define ACTION_COUNT $m\n" if defined $m }' src/parser.c
-grep -E '#define (STATE_COUNT|LARGE_STATE_COUNT) ' src/parser.c
+perl -ne 'if (/^#define (STATE_COUNT|LARGE_STATE_COUNT) \d+/) { print } while (/ACTIONS\((\d+)\)/g) { $m = $1 if !defined($m) || $1 > $m } END { print "#define ACTION_COUNT $m\n\n" if defined $m }' src/parser.c
 ```
 
 Treat the extracted output as the baseline and comparison source for optimization passes.
