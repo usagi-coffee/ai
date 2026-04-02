@@ -6,6 +6,8 @@ description: Optimize tree-sitter grammar cost metrics such as ACTION_COUNT, STA
 # Tree-sitter Optimize
 
 Use this skill to run a measured parser-cost reduction pass on a tree-sitter grammar.
+The optimization pass is not limited to the techniques listed below.
+Treat them as common patterns and examples, not an exhaustive menu.
 
 ## Workflow
 
@@ -42,6 +44,7 @@ Use this skill to run a measured parser-cost reduction pass on a tree-sitter gra
 - If a change is reverted cleanly, assume the metrics are back at the last accepted checkpoint unless there is a reason to distrust the revert.
 - Always leave a run-to-run state log.
   Note each transition between baseline, accepted change, revert, and final kept state.
+- Use any other behavior-preserving optimization that measurably improves parser cost, even if it is not listed in the technique catalog below.
 
 Example measurement loop:
 
@@ -79,6 +82,10 @@ grep -E '#define (STATE_COUNT|LARGE_STATE_COUNT) ' src/parser.c
 ```
 
 Treat the extracted output as the baseline and comparison source for optimization passes.
+
+## Technique Catalog
+
+The following techniques are common starting points, not the full set of allowed optimizations.
 
 ## Technique: Hidden Semantic Chunk Extraction
 
