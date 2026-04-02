@@ -24,6 +24,8 @@ Use this skill to run a measured parser-cost reduction pass on a tree-sitter gra
 6. Compare the result to the last accepted baseline and revert neutral-to-worse changes quickly.
 7. On slow grammars, remember the last accepted checkpoint counts and avoid re-measuring immediately after a pure revert.
 8. Run the normal test workflow after the kept changes.
+9. Always note every state change between runs.
+   Record the previous accepted state, the new observed state, and what change caused the transition so the next run starts from an explicit checkpoint.
 
 ## General Rules
 
@@ -37,6 +39,8 @@ Use this skill to run a measured parser-cost reduction pass on a tree-sitter gra
 - Some extractions reduce counts and some increase them. Try different cuts, regenerate, and keep only the proven win.
 - Use the last accepted checkpoint as the comparison source.
 - If a change is reverted cleanly, assume the metrics are back at the last accepted checkpoint unless there is a reason to distrust the revert.
+- Always leave a run-to-run state log.
+  Note each transition between baseline, accepted change, revert, and final kept state.
 
 Example measurement loop:
 
