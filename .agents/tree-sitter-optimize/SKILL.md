@@ -29,6 +29,15 @@ Treat them as common patterns and examples, not an exhaustive menu.
 9. Always note every state change between runs.
    Record the previous accepted state, the new observed state, and what change caused the transition so the next run starts from an explicit checkpoint.
 
+## Before Edit Mental Checklist
+
+Before applying any optimization, verify:
+
+- **Field preservation**: All `field("name", ...)` calls remain unchanged—same names, same positions, same wrapped content.
+- **Node visibility**: No nodes are hidden (`_prefix`) or exposed (removing `_prefix`) that weren't already.
+- **Rule ordering semantics**: The order of `choice()` branches, `seq()` elements, and `optional()` vs `repeat()` placements preserves the original precedence and associativity.
+- **Tree shape**: The resulting parse tree structure remains identical—no new wrapper nodes, no removed intermediate nodes, no reshuffled children.
+
 ## General Rules
 
 - Optimize where the duplication actually lives.
