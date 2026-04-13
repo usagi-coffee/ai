@@ -109,7 +109,7 @@ Treat the extracted output as the baseline and comparison source for optimizatio
 
 The following techniques are a common starting points, not the full set of allowed optimizations.
 
-### Hidden Semantic Chunk Extraction
+### Chunk Extraction
 
 Use when one large rule contains multiple logical sections that can be separated into hidden helpers.
 
