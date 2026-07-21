@@ -1,0 +1,4 @@
+interface:
+  display_name: "Android aarch64 Builds"
+  short_description: "Build Android projects on ARM Linux"
+  default_prompt: "Use $android-aarch64 to build and validate this Android project on aarch64 Linux."
