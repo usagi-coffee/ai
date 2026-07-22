@@ -68,6 +68,24 @@ const warning = $derived(overweight ? x : y);
 
 Changing `weight` from `110` to `120` keeps `overweight` `true`, so `warning` is not recalculated. Changing it from `120` to `90` changes `overweight` to `false` and recalculates `warning`; further changes below `100` are skipped again.
 
+### Async dependencies
+
+Values read inside asynchronous callbacks are not tracked automatically. Pass reactive dependencies as function arguments so they are read synchronously by the reactive expression and become stable snapshots inside the callback:
+
+```js
+let filter = $state("active");
+let limit = $state(20);
+
+function createRequest(filter, limit) {
+  return observe(async () => {
+    // Values read inside this callback are not tracked automatically
+    return await loadItems({ filter, limit });
+  });
+}
+
+const results = $derived(createRequest(filter, limit));
+```
+
 ### Local markup declarations
 
 Declare small values in the markup when they only coordinate a local part of the template. Keep them next to the places that use them instead of hoisting them into the component script:
