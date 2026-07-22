@@ -69,6 +69,26 @@ const warning = $derived(overweight ? x : y);
 
 Changing `weight` from `110` to `120` keeps `overweight` `true`, so `warning` is not recalculated. Changing it from `120` to `90` changes `overweight` to `false` and recalculates `warning`; further changes below `100` are skipped again.
 
+### Local markup declarations
+
+Declare small values in the markup when they only coordinate a local part of the template. Keep them next to the places that use them instead of hoisting them into the component script:
+
+```svelte
+<section>
+  {const template = $derived(compact ? "1fr 5rem" : "1fr 8rem")}
+
+  <header style:grid-template-columns={template}>
+    ...
+  </header>
+
+  <article style:grid-template-columns={template}>
+    ...
+  </article>
+</section>
+```
+
+Use `{const ...}` for local values and `{let ... = $state(...)}` for local mutable state. Their scope and lifetime follow the surrounding markup block.
+
 ### Reactive collections
 
 Use svelte's built-in reactive collections when mutations such as `.add()`, `.set()`, or `.delete()` must update derived values or markup:
