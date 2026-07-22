@@ -158,3 +158,23 @@ class Line {
   }
 }
 ```
+
+### Search parameters
+
+Use `SvelteURLSearchParams` when search parameters participate in reactivity:
+
+```svelte
+<script>
+  import { replaceState } from "$app/navigation";
+  import { page } from "$app/state";
+  import { SvelteURLSearchParams } from "svelte/reactivity";
+
+  const params = $derived(new SvelteURLSearchParams(page.url.search));
+  const query = $derived(params.get("query") ?? "");
+</script>
+
+<input bind:value={() => query, (value) => {
+  params.set('query', value);
+  replaceState(`?${params}`, {});
+}}/>
+```
