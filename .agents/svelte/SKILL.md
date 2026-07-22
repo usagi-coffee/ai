@@ -24,10 +24,10 @@ Apply these rules when creating or modifying Svelte files. Preserve existing pro
 
 ## State and reactivity
 
-- Use `$state` for mutable state, `$derived` for expressions, and `$derived.by` for multi-step calculations.
+- Use `$state` for mutable state, `$derived` for expressions, and `$derived.by` for multi-step calculations. `$state.raw` is a good choice for storing arrays when their items do not need deep reactivity; replace the array when it changes.
 - Declare `$derived` with `const` unless it is reassigned; then use `let`, `$derived.by()` cannot be reassigned/mutated.
 - Prefer many small, composable `$derived` values over one large computation. They stay lazy, track narrower dependency sets, and make broad or expensive invalidations easy to locate and fix.
-- Default to class-first design for stateful workflows: classes own state, derived facts, and mutations; components render them and call their methods. Put shared workflow classes in `.svelte.js` and page-only classes in the component. Prefer reactive fields over getters and use `$state.raw` when nested proxying is unnecessary.
+- Default to class-first design for stateful workflows: classes own state, derived facts, and mutations; components render them and call their methods. Put shared workflow classes in `.svelte.js` and page-only classes in the component. Prefer reactive fields over getters.
 - Prefer mutating methods such as `push` and `splice` when updating an existing reactive array. Do not replace the entire array solely to trigger reactivity.
 - Avoid `$effect` for synchronization. Use derived state, function bindings, attachments, or direct mutation at the event/API/entity method that owns the change.
 
@@ -68,6 +68,26 @@ const warning = $derived(overweight ? x : y);
 ```
 
 Changing `weight` from `110` to `120` keeps `overweight` `true`, so `warning` is not recalculated. Changing it from `120` to `90` changes `overweight` to `false` and recalculates `warning`; further changes below `100` are skipped again.
+
+### Reactive collections
+
+Use svelte's built-in reactive collections when mutations such as `.add()`, `.set()`, or `.delete()` must update derived values or markup:
+
+```svelte
+<script>
+  import { SvelteSet } from "svelte/reactivity";
+
+  const selected = new SvelteSet();
+</script>
+
+<button onclick={() => selected.add(record.id)}>
+  Select
+</button>
+
+{selected.size} selected
+```
+
+Use `SvelteMap`, `SvelteSet`, or `SvelteURLSearchParams` instead of their native counterparts when the collection itself participates in reactivity.
 
 ### Attachments
 
