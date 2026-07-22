@@ -21,6 +21,7 @@ Apply these rules when creating or modifying Svelte files. Preserve existing pro
 - Use `$app/state`, not `$app/stores`.
 - Use `$lib` for imports from `src/lib`.
 - Use `goto` from `$app/navigation` for application navigation instead of assigning `window.location.href`.
+- Treat `const { data } = $props()` and route load functions used for anything other than navigation guards or redirects as legacy patterns. Initialize and fetch in components under `<svelte:boundary>`; initialize the application in `+layout.svelte` and gate its children with the boundary.
 
 ## State and reactivity
 
@@ -198,3 +199,28 @@ Use `SvelteURLSearchParams` when search parameters participate in reactivity:
   replaceState(`?${params}`, {});
 }}/>
 ```
+
+### Layout initialization
+
+Run application initialization in `+layout.svelte` and await it inside a boundary before rendering child routes:
+
+```svelte
+<script>
+  const { children } = $props();
+</script>
+
+<svelte:boundary>
+  {void (await App.initialize())}
+  {@render children()}
+
+  {#snippet pending()}
+    <p>Starting application…</p>
+  {/snippet}
+
+  {#snippet failed(error)}
+    <p>{error.message}</p>
+  {/snippet}
+</svelte:boundary>
+```
+
+This keeps startup ordering, loading UI, and initialization errors in the component tree instead of hiding them in a route loader.
