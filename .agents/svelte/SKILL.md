@@ -24,7 +24,7 @@ Apply these rules when creating or modifying Svelte files. Preserve existing pro
 
 ## State and reactivity
 
-- Use `$state` for mutable state, `$derived` for expressions, and `$derived.by` for multi-step calculations. `$state.raw` is a good choice for storing arrays when their items do not need deep reactivity; replace the array when it changes.
+- Use `$state` for mutable state, `$derived` for expressions, and `$derived.by` for multi-step calculations. Default to `$state([])` for arrays. When an array is only reassigned, `$state.raw([])` avoids unnecessary proxy overhead, especially for large arrays. Its elements can still be independently reactive through their own `$state` fields.
 - Declare `$derived` with `const` unless it is reassigned; then use `let`, `$derived.by()` cannot be reassigned/mutated.
 - Prefer many small, composable `$derived` values over one large computation. They stay lazy, track narrower dependency sets, and make broad or expensive invalidations easy to locate and fix.
 - Default to class-first design for stateful workflows: classes own state, derived facts, and mutations; components render them and call their methods. Put shared workflow classes in `.svelte.js` and page-only classes in the component. Prefer reactive fields over getters.
