@@ -24,13 +24,29 @@ Apply these rules when creating or modifying Svelte files. Preserve existing pro
 
 ## State and reactivity
 
-- Use `$state` for mutable state, `$derived` for expressions, and `$derived.by` for multi-step calculations. A `let` derived may be intentionally overridden.
+- Use `$state` for mutable state, `$derived` for expressions, and `$derived.by` for multi-step calculations.
+- Declare `$derived` with `const` unless it is reassigned; then use `let`, `$derived.by()` cannot be reassigned/mutated.
 - Prefer many small, composable `$derived` values over one large computation. They stay lazy, track narrower dependency sets, and make broad or expensive invalidations easy to locate and fix.
 - Default to class-first design for stateful workflows: classes own state, derived facts, and mutations; components render them and call their methods. Put shared workflow classes in `.svelte.js` and page-only classes in the component. Prefer reactive fields over getters and use `$state.raw` when nested proxying is unnecessary.
 - Prefer mutating methods such as `push` and `splice` when updating an existing reactive array. Do not replace the entire array solely to trigger reactivity.
 - Avoid `$effect` for synchronization. Use derived state, function bindings, attachments, or direct mutation at the event/API/entity method that owns the change.
 
 ## Patterns
+
+### Derived declarations
+
+Use `const` when code only reads the binding and `let` when code also assigns to it. Both forms are valid:
+
+```js
+const total = $derived(lines.reduce((sum, line) => sum + line.quantity, 0));
+
+let selected = $derived(lines[0]);
+function select(line) {
+  selected = line;
+}
+```
+
+`selected` is still derived state; declaring it with `let` allows the explicit override which quite often can help with avoiding `$effect`.
 
 ### Split derived calculations
 
@@ -52,6 +68,28 @@ const warning = $derived(overweight ? x : y);
 ```
 
 Changing `weight` from `110` to `120` keeps `overweight` `true`, so `warning` is not recalculated. Changing it from `120` to `90` changes `overweight` to `false` and recalculates `warning`; further changes below `100` are skipped again.
+
+### Attachments
+
+Register DOM behavior and its cleanup in the same attachment. Compose independent behaviors directly on the element:
+
+```svelte
+<script>
+  function autoselect(element) {
+    const select = () => element.select();
+
+    element.addEventListener("focus", select);
+    element.addEventListener("click", select);
+
+    return () => {
+      element.removeEventListener("focus", select);
+      element.removeEventListener("click", select);
+    };
+  }
+</script>
+
+<input {@attach autoselect} {@attach tooltip("Search")} />
+```
 
 ### Function binding
 
