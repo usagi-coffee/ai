@@ -182,7 +182,7 @@ class Line {
 
 ### Search parameters
 
-Use `SvelteURLSearchParams` when search parameters participate in reactivity:
+Use `SvelteURLSearchParams` when search parameters participate in reactivity. Keeping filters and selections in the URL makes the current view shareable: someone opening the link gets the same values already applied.
 
 ```svelte
 <script>
