@@ -9,13 +9,12 @@ Apply these rules when creating or modifying Svelte files. Preserve existing pro
 
 ## Svelte
 
-- Use Svelte 5 runes. Do not use legacy component APIs such as `export let`.
-- Use `$state`, `$derived`, `$derived.by(` insetead of legacy `$:` declarations.
+- Use Svelte 5 runes. Do not introduce legacy APIs such as `export let`, `$:`, `on:click`, or slots.
+- Use event properties, snippets, and `{@render ...}`.
 - Use `{const ...}`, `{const ... = $derived(...)}`, and `{let ... = $state(...)}` in markup. Do not use legacy `{@const ...}`.
-- Use `{@attach ...}` over `bind:this`, `onMount`, `onDestroy`, keep in mind reads inside the attachment force re-attachments.
+- Use `{@attach ...}` over `bind:this`, `onMount`, and `onDestroy`. Reactive reads inside an attachment cause reattachment.
 - Destructure component props from `$props()`.
-- Use `<svelte:boundary>` instead of legacy `{#await` blocks.
-- You can use top-level await e.g `const value = $derived(await fetch())` in the `<script>` block and the markup.
+- Prefer top-level await and async `$derived` under `<svelte:boundary>` over `{#await}` blocks and manual loading state.
 
 ## SvelteKit
 
@@ -25,18 +24,79 @@ Apply these rules when creating or modifying Svelte files. Preserve existing pro
 
 ## State and reactivity
 
-- Model mutable local state with `$state` and derived values with `$derived` or `$derived.by`, keep in mind `$derived` when defined with `let` can be mutated.
-- Use many `$derived`'s, split state into small, focused values rather than one large computation, this improves the performance and helps localize performance issues.
-- Prefer reactive class fields such as `value = $derived(...)` over getters when both express the same logic clearly.
-- Use a getter only when `$derived` or `$derived.by` would be insufficient.
-- Prefer mutating array methods when updating an existing reactive array instead of replacing the full array solely to trigger reactivity.
-- Do not use `$effect` as a default synchronization mechanism, in most cases `$effect` usage can be replaced with a mutating `$derived`, function bindings or just updating at call-site.
-- Keep related state consistent at the mutation site: event handlers, function bindings, API callbacks, or entity methods.
+- Use `$state` for mutable state, `$derived` for expressions, and `$derived.by` for multi-step calculations. A `let` derived may be intentionally overridden.
+- Prefer many small, composable `$derived` values over one large computation. They stay lazy, track narrower dependency sets, and make broad or expensive invalidations easy to locate and fix.
+- Default to class-first design for stateful workflows: classes own state, derived facts, and mutations; components render them and call their methods. Put shared workflow classes in `.svelte.js` and page-only classes in the component. Prefer reactive fields over getters and use `$state.raw` when nested proxying is unnecessary.
+- Prefer mutating methods such as `push` and `splice` when updating an existing reactive array. Do not replace the entire array solely to trigger reactivity.
+- Avoid `$effect` for synchronization. Use derived state, function bindings, attachments, or direct mutation at the event/API/entity method that owns the change.
 
 ## Patterns
 
-- Prefer function bindings when input updates require validation, normalization, or coordinated side effects:
+### Split derived calculations
+
+Keep each dependency step narrow and lazy. This exposes where work happens and lets an unchanged intermediate value stop invalidation from reaching later calculations:
+
+```js
+const search = $derived(query.toUpperCase());
+const visible = $derived(
+  records.filter((record) => record.name.includes(search)),
+);
+const groups = $derived(group_by(visible, (record) => record.group));
+```
+
+A boolean derived is a useful gate:
+
+```js
+const overweight = $derived(weight > 100);
+const warning = $derived(overweight ? x : y);
+```
+
+Changing `weight` from `110` to `120` keeps `overweight` `true`, so `warning` is not recalculated. Changing it from `120` to `90` changes `overweight` to `false` and recalculates `warning`; further changes below `100` are skipped again.
+
+### Function binding
+
+Normalize or coordinate writes at the binding boundary:
 
 ```svelte
-<input bind:value={() => value, (next) => (value = next)} />
+<input bind:value={() => search, (value) => (search = value.toUpperCase())} />
+```
+
+Use class accessors for bindings with coordinated writes or side effects. This avoids having to use `$effect` and leaking wrapper internals such as `.current` into the template and keeps the markup as a clean domain property:
+
+```svelte
+<script>
+  class Person {
+    #name = $state();
+
+    get name() {
+      return this.#name;
+    }
+
+    set name(value) {
+      this.#name = value;
+      doSomethingElse();
+    }
+  };
+
+  const person = new Person();
+</script>
+
+<input bind:value={person.name} />
+```
+
+### Class-first design
+
+Represent a stateful entity or workflow as a class. Keep its invariants and mutations out of loose component variables:
+
+```js
+class Line {
+  transactions = $state([]);
+  issued = $derived(
+    this.transactions.reduce((total, tx) => total + tx.quantity, 0),
+  );
+
+  add(transaction) {
+    this.transactions.push(transaction);
+  }
+}
 ```
