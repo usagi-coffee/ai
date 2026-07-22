@@ -27,7 +27,7 @@ Use this skill to run a measured parser-cost reduction pass on a tree-sitter gra
 8. On slow grammars, remember the last accepted checkpoint counts and avoid re-measuring immediately after a pure revert.
 9. Run the normal test workflow after the kept changes.
 10. Always note every state change between runs.
-   Record the previous accepted state, the new observed state, and what change caused the transition so the next run starts from an explicit checkpoint.
+    Record the previous accepted state, the new observed state, and what change caused the transition so the next run starts from an explicit checkpoint.
 
 ## Before Edit Mental Checklist
 
@@ -94,7 +94,6 @@ perl -ne 'if (/^#define (STATE_COUNT|LARGE_STATE_COUNT) \d+/) { print } while (/
 
 Treat the extracted output as the baseline and comparison source for optimization passes.
 
-
 ## Validation
 
 - Re-run the parser generation command after every optimization step.
@@ -133,20 +132,10 @@ Prefer:
 
 ```js
 type_definition: ($) =>
-  seq(
-    $._type_definition_type,
-    $._type_definition_declarators,
-    repeat($.attribute_specifier),
-    ";",
-  );
+  seq($._type_definition_type, $._type_definition_declarators, repeat($.attribute_specifier), ";");
 _type_definition_type: ($) =>
-  seq(
-    repeat($.type_qualifier),
-    field("type", $._type_specifier),
-    repeat($.type_qualifier),
-  );
-_type_definition_declarators: ($) =>
-  commaSep1(field("declarator", $._type_declarator));
+  seq(repeat($.type_qualifier), field("type", $._type_specifier), repeat($.type_qualifier));
+_type_definition_declarators: ($) => commaSep1(field("declarator", $._type_declarator));
 ```
 
 Use it when the extracted pieces are real semantic chunks, not arbitrary slices.
@@ -299,10 +288,7 @@ Do not extract a helper like `seq(optional(...), repeat(...))` if that helper ca
 Example:
 
 ```js
-choice(
-  seq("A", optional($.x), repeat($.y)),
-  seq("B", optional($.x), repeat($.y)),
-);
+choice(seq("A", optional($.x), repeat($.y)), seq("B", optional($.x), repeat($.y)));
 ```
 
 Prefer:
@@ -406,11 +392,7 @@ Example:
 
 ```js
 _sql_statement: ($) =>
-  choice(
-    $._sql_create_statement,
-    $._sql_drop_statement,
-    $._sql_alter_statement,
-  );
+  choice($._sql_create_statement, $._sql_drop_statement, $._sql_alter_statement);
 ```
 
 This may look cleaner, but it can still increase parser cost. Prefer testing local sharing inside the SQL rules first.
