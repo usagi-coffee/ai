@@ -11,7 +11,7 @@ Apply these rules when creating or modifying Svelte files. Preserve existing pro
 
 - Use Svelte 5 runes. Do not introduce legacy APIs such as `export let`, `$:`, `on:click`, or slots.
 - Use event properties, snippets, and `{@render ...}`.
-- Use `{const ...}`, `{const ... = $derived(...)}`, and `{let ... = $state(...)}` in markup. Do not use legacy `{@const ...}`.
+- Markup declaration tags are not reactive by default. Use `{const value = $derived(expression)}` when the value must update and `{let value = $state(initial)}` for mutable reactive state. Use bare `{const value = expression}` only when the value does not need to update, and avoid bare `{let ...}` for state. Do not use legacy `{@const ...}`.
 - Use `{@attach ...}` over `bind:this`, `onMount`, and `onDestroy`. Reactive reads inside an attachment cause reattachment.
 - Destructure component props from `$props()`.
 - Prefer top-level await and async `$derived` under `<svelte:boundary>` over `{#await}` blocks and manual loading state.
@@ -88,7 +88,7 @@ const results = $derived(createRequest(filter, limit));
 
 ### Local markup declarations
 
-Declare small values in the markup when they only coordinate a local part of the template. Keep them next to the places that use them instead of hoisting them into the component script:
+Declaration tags only provide local variables and block scope; `$derived` and `$state` provide reactivity. Keep small local values next to the markup that uses them instead of hoisting them into the component script:
 
 ```svelte
 <section>
@@ -104,7 +104,7 @@ Declare small values in the markup when they only coordinate a local part of the
 </section>
 ```
 
-Use `{const ...}` for local values and `{let ... = $state(...)}` for local mutable state. Their scope and lifetime follow the surrounding markup block.
+`{const template = compact ? a : b}` would not update when `compact` changes; `$derived` is what makes it reactive. Likewise, `{let expanded = false}` is not reactive; use `{let expanded = $state(false)}` when assignments must update the markup. Their scope and lifetime follow the surrounding block.
 
 ### Reactive collections
 
