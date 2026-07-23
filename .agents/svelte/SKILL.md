@@ -14,7 +14,7 @@ Apply these rules when creating or modifying Svelte files. Preserve existing pro
 - Markup declaration tags are not reactive by default. Use `{const value = $derived(expression)}` when the value must update and `{let value = $state(initial)}` for mutable reactive state. Use bare `{const value = expression}` only when the value does not need to update, and avoid bare `{let ...}` for state. Do not use legacy `{@const ...}`.
 - Use `{@attach ...}` over `bind:this`, `onMount`, and `onDestroy`. Reactive reads inside an attachment cause reattachment.
 - Destructure component props from `$props()`.
-- Consider `{#await ...}` blocks legacy. Do not introduce or preserve them; replace them with top-level `await` or `{await expression}` in markup. Enclose the asynchronous subtree in `<svelte:boundary>` if needed and always put loading and error UI in its `pending` and `failed` snippets.
+- Treat `{#await ...}` blocks as legacy. Use top-level `<script>` await for component-level work and `{await expression}` inside `<svelte:boundary>` for a local subtree. The latter is a markup await, not top-level await. Add a `pending` snippet only when the expected delay justifies replacing the current UI; omit it for short work to avoid loader flashes.
 
 ## SvelteKit
 
