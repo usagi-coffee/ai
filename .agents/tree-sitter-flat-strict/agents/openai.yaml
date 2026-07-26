@@ -1,0 +1,4 @@
+interface:
+  display_name: "Tree-sitter (Flat/Strict variant)"
+  short_description: "Write precise tree-sitter grammars"
+  default_prompt: "Use $tree-sitter-flat-strict to add or revise grammar rules with corpus coverage."
