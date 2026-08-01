@@ -38,10 +38,7 @@ Do not replace ordered options with a permissive loop:
 
 ```js
 // Too broad: accepts either part repeatedly and in any order.
-repeat(choice(
-  seq(":", field("type", $._type)),
-  seq("=", field("value", $._expression)),
-))
+repeat(choice(seq(":", field("type", $._type)), seq("=", field("value", $._expression))));
 ```
 
 - Use `optional`, `repeat`, and `repeat1` only where absence or repetition is legal.
@@ -81,19 +78,16 @@ Use a field:
 
 ```js
 // Avoid
-seq(":", $._type)
+seq(":", $._type);
 
 // Prefer
-seq(":", field("type", $._type))
+seq(":", field("type", $._type));
 ```
 
 Repeat the field for repeated values:
 
 ```js
-seq(
-  field("item", $.identifier),
-  repeat(seq(",", field("item", $.identifier))),
-)
+seq(field("item", $.identifier), repeat(seq(",", field("item", $.identifier))));
 ```
 
 ### Trivial flags
@@ -101,13 +95,13 @@ seq(
 Alias an anonymous flag directly:
 
 ```js
-alias("?", $.optional)
+alias("?", $.optional);
 ```
 
 Avoid a wrapper and an `_option` suffix:
 
 ```js
-optional_marker_option: ($) => "?"
+optional_marker_option: ($) => "?";
 ```
 
 Starting keywords, terminators, and meaningful choices are not trivial flags.
@@ -117,10 +111,7 @@ Starting keywords, terminators, and meaningful choices are not trivial flags.
 Alias the whole phrase when its parts belong to one semantic option:
 
 ```js
-alias(
-  seq("from", field("source", $.identifier)),
-  $.from_clause,
-)
+alias(seq("from", field("source", $.identifier)), $.from_clause);
 ```
 
 For a reused phrase, keep its helper hidden and alias it at the call site:

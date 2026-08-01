@@ -1,0 +1,23 @@
+{
+  "name": "ai",
+  "version": "1.0.0",
+  "description": "This repository contains AI-related things, including reusable skills and other agent-facing artifacts.",
+  "homepage": "https://github.com/usagi-coffee/ai#readme",
+  "bugs": {
+    "url": "https://github.com/usagi-coffee/ai/issues"
+  },
+  "license": "ISC",
+  "author": "",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/usagi-coffee/ai.git"
+  },
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "format": "oxfmt ."
+  },
+  "devDependencies": {
+    "oxfmt": "^0.61.0"
+  }
+}

@@ -55,9 +55,7 @@ Keep each dependency step narrow and lazy. This exposes where work happens and l
 
 ```js
 const search = $derived(query.toUpperCase());
-const visible = $derived(
-  records.filter((record) => record.name.includes(search)),
-);
+const visible = $derived(records.filter((record) => record.name.includes(search)));
 const groups = $derived(group_by(visible, (record) => record.group));
 ```
 
