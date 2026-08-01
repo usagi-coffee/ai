@@ -55,7 +55,9 @@ Keep each dependency step narrow and lazy. This exposes where work happens and l
 
 ```js
 const search = $derived(query.toUpperCase());
-const visible = $derived(records.filter((record) => record.name.includes(search)));
+const visible = $derived(
+  records.filter((record) => record.name.includes(search)),
+);
 const groups = $derived(group_by(visible, (record) => record.group));
 ```
 
@@ -234,28 +236,65 @@ Use `SvelteURLSearchParams` when search parameters participate in reactivity. Ke
 
 ### Layout initialization
 
-Run application initialization in `+layout.svelte` and await it inside a boundary before rendering child routes:
+Run application initialization in `+layout.svelte`. Model startup as an explicit promise chain and give each meaningful stage its own boundary so its pending and failure UI accurately describes the work being performed:
 
 ```svelte
 <script>
+  import { invalidate } from "$app/navigation";
+
+  import { App } from "$lib/app.svelte";
+  import { ensure_service_worker } from "$lib/service-worker";
+
+  /** @type {{ children?: import("svelte").Snippet<[void]> }} */
   const { children } = $props();
 </script>
 
 <svelte:boundary>
-  {void (await App.initialize())}
-  {@render children()}
+  {const service_worker = ensure_service_worker()}
+  {void (await service_worker)}
+
+  <svelte:boundary>
+    {const application = service_worker.then(() => App.initialize())}
+    {void (await application)}
+
+    <svelte:boundary>
+      {const routes = application.then(() => invalidate("app:initialized"))}
+      {@render children?.(await routes)}
+
+      {#snippet failed(error, reset)}
+        {@render Failure({ text: "Could not refresh routes", error, reset })}
+      {/snippet}
+    </svelte:boundary>
+
+    {#snippet pending()}
+      <p>Loading application…</p>
+    {/snippet}
+
+    {#snippet failed(error, reset)}
+      {@render Failure({ text: "Could not initialize application", error, reset })}
+    {/snippet}
+  </svelte:boundary>
 
   {#snippet pending()}
-    <p>Starting application…</p>
+    <p>Starting service worker…</p>
   {/snippet}
 
-  {#snippet failed(error)}
-    <p>{error.message}</p>
+  {#snippet failed(error, reset)}
+    {@render Failure({ text: "Could not start service worker", error, reset })}
   {/snippet}
 </svelte:boundary>
+
+{#snippet Failure({ text, error, reset })}
+  <section>
+    <p>{text}</p>
+    <pre>{error instanceof Error ? error.message : String(error)}</pre>
+    <button onclick={() => reset()}>Try again</button>
+  </section>
+{/snippet}
 ```
 
-This keeps startup ordering, loading UI, and initialization errors in the component tree instead of hiding them in a route loader.
+Create each promise once with a local declaration, await it before entering the dependent subtree, and derive the next stage with `.then(...)`. Add or remove nested stages to match the application; do not collapse independent startup failures into one generic boundary.
 
-Keep in mind the top-level script of the page (`{@render children()}`) does not wait for the initialization above so if any member is undefined and becomes initialized by `App.initialize()` it will result in errors, in this case we can simply pass `
-{@render children(void (await App.initialize()))}}` into the parameter and adjust `children` type accordingly.
+After initialization, invalidate the dependency used by route loaders so they run against initialized application state. If needed, pass the awaited `void` result to `children` and type it as `Snippet<[void]>`; this makes child snippet invocation depend on the final promise. Calling `children()` without that argument can allow child route code to run before globals populated during initialization are available.
+
+Keep startup ordering, loading UI, retry behavior, and initialization errors in the component tree instead of hiding them in a route loader. Attachments for service workers, navigation, update checks, or other DOM-lifetime integrations belong on the layout's stable outer element and can wrap this boundary tree.
