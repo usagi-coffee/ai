@@ -49,6 +49,20 @@ function select(line) {
 
 `selected` is still derived state; declaring it with `let` allows the explicit override which quite often can help with avoiding `$effect`.
 
+### Derived initial values
+
+Prefer `$derived` even when a computed value is described as an initial or default value. In most cases, allowing it to update when its dependencies change is harmless and simpler than deliberately breaking reactivity:
+
+```js
+// Avoid by default
+let selected = $state(untrack(() => lines[0]));
+
+// Prefer, even when lines[0] is only the initial selection
+let selected = $derived(lines[0]);
+```
+
+Declaring the derived value with `let` still permits an explicit override. Use `$state(untrack(() => expression))` only when a later dependency change updating the value would be incorrect, not merely because the value is considered initial.
+
 ### Split derived calculations
 
 Keep each dependency step narrow and lazy. This exposes where work happens and lets an unchanged intermediate value stop invalidation from reaching later calculations:
