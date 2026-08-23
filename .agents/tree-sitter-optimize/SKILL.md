@@ -338,6 +338,32 @@ __ordered_tail_after_target: ($) =>
 
 Use it when the repeated suffix is real and the non-empty reformulation preserves the same tree shape and accepted syntax.
 
+### Right-Recursive Repetition
+
+Try replacing `repeat1(body)` in a hidden rule with an explicit non-empty right-recursive sequence when the repeated body is a parser-cost hotspot.
+
+Example:
+
+```js
+__scoped_name_tail: ($) =>
+  repeat1(
+    seq($._namedoublecolon, field("right", alias($._identifier_immediate, $.identifier))),
+  ),
+```
+
+Prefer:
+
+```js
+__scoped_name_tail: ($) =>
+  seq(
+    $._namedoublecolon,
+    field("right", alias($._identifier_immediate, $.identifier)),
+    optional($.__scoped_name_tail),
+  ),
+```
+
+This accepts the same one-or-more sequence while making the recursion explicit, which can reduce parser states or actions for some repeated bodies. Keep the recursive rule hidden so it does not introduce nested visible nodes.
+
 ### Token Packing
 
 Use when a generic tail consumes many punctuation or operator branches as undifferentiated items.
