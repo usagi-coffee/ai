@@ -15,6 +15,7 @@ Apply these rules when creating or modifying Svelte files. Preserve existing pro
 - Use `{@attach ...}` over `bind:this`, `onMount`, and `onDestroy`. Reactive reads inside an attachment cause reattachment.
 - Destructure component props from `$props()`.
 - Replace `{#await ...}` with `<svelte:boundary>`. Use top-level `<script>` await for component-level work and `{await expression}` inside `<svelte:boundary>` for a local subtree. The latter is a markup await, not top-level await. Add a `pending` snippet only when the expected delay justifies replacing the current UI; omit it for short work to avoid loader flashes.
+- Never start a free-floating promise in a component script (for example, `initialize();`). Give every initialization promise an explicit lifecycle owner: await it at the top level, directly or as part of an awaited promise chain, or start it from an attachment that owns the related behavior and cleanup.
 
 ## SvelteKit
 
